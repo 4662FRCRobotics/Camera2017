@@ -1,0 +1,59 @@
+Raspberry Pi 3B config
+
+Raspbian Jesse Lite: https://www.raspberrypi.org/downloads/raspbian/
+also download (for windows) per info on "installation" page: Win32DiskImager 
+
+enable SSH by putting a file named "SSH" on the boot image Micro SD card
+-or-
+sudo raspi-config
+enable SSH
+bring up on "console" text mode - no desktop shell
+Logon to user Pi at reboot to activate the user crontab
+ip address team.11: https://wpilib.screenstepslive.com/s/4485/m/24193/l/319135-ip-networking-at-the-event
+how-to: https://www.modmypi.com/blog/how-to-give-your-raspberry-pi-a-static-ip-address-update
+sudo nano /etc/dhcpcd.conf
+interface eth0
+static ip_address=10.46.62.11/24
+static routers=10.46.62.1
+static domain_name_servers=10.46.62.1
+
+
+install opencv - required for visionb
+http://robinhenniges.com/en/install-opencv-for-java-raspberry-pi-debian-jessy
+notes
+I had to use "sudo" on the "make" command as it was copying modules into restricted folders
+
+for extended options to control GPIO - like the commands to a relay for LED control
+pi4j is a Java class lib that provides access to the GPIO executables
+install pi4j - http://pi4j.com/install.html
+GPIO executables for C++ and Java use
+install wiringpi - http://wiringpi.com/download-and-install/
+
+executables installed in /home/pi path
+command to run vision process needs "sudo" if it's using GPIO (pi4j) code.  Hardware level access requires super-user (root).  In the example code from WPILib, add "sudo" to the front of the "runCameraVision" command.
+
+crontab for user pi added line - only works if "pi" signs on at bootup (per raspi-config above)
+# at system boot run the cameravision script with messages to camvis.log and errors to camerr.log
+@reboot . ~/runCameraVision 1>camvis.log 2>camerr.log
+
+Driver's Station:
+Win32DiskImager
+Use Win32DiskImager to create and save full SD images for the pi
+<write> - takes an image file (e.g. the Jesse Lite) and creates a boot SD
+<read> - backs up a complete SD into a single .img file for later use.  Use this to back up a fully configured SD with vision executable.  That image can be used to clone additional SDs.
+
+PuTTY
+	add and save an entry for 10.46.62.11 port 22 to use as SSH client to pi session
+	
+FileZilla
+	use the same port 10.46.62.11 port 22 for SFTP (secure FTP shares secure port with SSH)
+	
+Eclipse with Remote System Explorer plug-in added
+	<help><add new software> 
+	select the eclipse download for the current version (2017 - Neon)
+	brings up a list of un-installed plug-ins
+	filter on "remote"
+	look for and select "Remote System Explorer" and "Remote Utilities"
+
+
+
