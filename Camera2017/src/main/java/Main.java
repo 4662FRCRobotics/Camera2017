@@ -54,9 +54,11 @@ public class Main {
     // This is the network port you want to stream the raw received image to
     // By rules, this has to be between 1180 and 1190, so 1185 is a good choice
     int streamPort = 1185;
+    int streamPort2 = 1187;
 
     // This stores our reference to our mjpeg server for streaming the input image
     MjpegServer inputStream = new MjpegServer("MJPEG Server", streamPort);
+    MjpegServer inputStream2 = new MjpegServer("MJPEG Server2", streamPort2);
 
 
     /***********************************************/
@@ -72,6 +74,8 @@ public class Main {
     */
     UsbCamera camera = setUsbCamera(0, inputStream);
     camera.setResolution(320,240);
+    UsbCamera cam2 = setUsbCamera(1, inputStream2);
+    cam2.setResolution(320, 240);
 
     // This creates a CvSink for us to use. This grabs images from our selected camera, 
     // and will allow us to use those images in opencv
