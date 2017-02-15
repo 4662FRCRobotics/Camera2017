@@ -46,9 +46,12 @@ public class Main {
 	
 	final GpioController gpio = GpioFactory.getInstance();
 	// provision gpio pin #01 as an output pin and turn on
-    final GpioPinDigitalOutput pin = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_01, "MyLED", PinState.HIGH);
+    final GpioPinDigitalOutput gearLight = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_00, "Gear", PinState.LOW);
     // set shutdown state for this pin
-    pin.setShutdownOptions(true, PinState.LOW);
+    gearLight.setShutdownOptions(true, PinState.LOW);
+    final GpioPinDigitalOutput fuelLight = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_01, "Fuel", PinState.LOW);
+    // set shutdown state for this pin
+    fuelLight.setShutdownOptions(true, PinState.LOW);
 
    
     // This is the network port you want to stream the raw received image to
@@ -96,6 +99,10 @@ public class Main {
 	visionTable.putBoolean("Take Pic", bVisionInd);
 	boolean bCameraLoop = true;
 	visionTable.putBoolean("Keep Running", bCameraLoop);
+	boolean bGearDrive = true;
+	visionTable.putBoolean("IsGearDrive", bGearDrive);
+	boolean bVisionOn = false;
+	visionTable.putBoolean("IsVisionOn", bVisionOn);
     // Infinitely process image
 //    while (true) {
     int i=0;
@@ -115,6 +122,20 @@ public class Main {
       // For now, we are just going to stream the HSV image
 //      imageSource.putFrame(hsv);
 
+      	bGearDrive = visionTable.getBoolean("IsGearDrive", bGearDrive);
+      	bVisionOn = visionTable.getBoolean("IsVisionOn", bVisionOn);
+      	if (bVisionOn) {
+      		if (bGearDrive) {
+      			gearLight.high();
+      			fuelLight.low();
+      		} else {
+      			fuelLight.high();
+      			gearLight.low();
+      		}
+      	} else {
+      		gearLight.low();
+      		fuelLight.low();
+      	}
 		visionTable.putNumber("Next Pic", i);
 		bVisionInd = visionTable.getBoolean("Take Pic", bVisionInd);
 		if (bVisionInd) {
