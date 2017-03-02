@@ -3,7 +3,7 @@ import java.util.ArrayList;
 import edu.wpi.first.wpilibj.networktables.*;
 import edu.wpi.first.wpilibj.tables.*;
 import edu.wpi.cscore.*;
-import org.opencv.core.Mat;
+
 import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
@@ -37,48 +37,30 @@ public class Main {
 
     // Connect NetworkTables, and get access to the publishing table
 	NetworkTable.setClientMode();
-    // Set your team number here
     NetworkTable.setTeam(4662);
-//	NetworkTable.setIPAddress("10.46.62.3");
-
     NetworkTable.initialize();
 	NetworkTable visionTable = NetworkTable.getTable("Vision");
 	
+	//gpio for relay light control
 	final GpioController gpio = GpioFactory.getInstance();
-	// provision gpio pin #01 as an output pin and turn on
     final GpioPinDigitalOutput gearLight = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_00, "Gear", PinState.LOW);
-    // set shutdown state for this pin
     gearLight.setShutdownOptions(true, PinState.LOW);
     final GpioPinDigitalOutput fuelLight = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_01, "Fuel", PinState.LOW);
-    // set shutdown state for this pin
     fuelLight.setShutdownOptions(true, PinState.LOW);
 
    
     // This is the network port you want to stream the raw received image to
     // By rules, this has to be between 1180 and 1190, so 1185 is a good choice
-    int streamPort = 1185;
-    int streamPort2 = 1187;
-
+//    int streamPort = 1185;
+//    int streamPort2 = 1187;
     // This stores our reference to our mjpeg server for streaming the input image
-    MjpegServer inputStream = new MjpegServer("MJPEG Server", streamPort);
-    MjpegServer inputStream2 = new MjpegServer("MJPEG Server2", streamPort2);
+ //   MjpegServer inputStream = new MjpegServer("MJPEG Server", streamPort);
+ //   MjpegServer inputStream2 = new MjpegServer("MJPEG Server2", streamPort2);
+//    UsbCamera camera = setUsbCamera(0, inputStream);
+//    UsbCamera cam2 = setUsbCamera(1, inputStream2);
+    UsbCamera camera = setUsbCamera("GearCam",0);
+    UsbCamera cam2 = setUsbCamera("ShootCam",1);
 
-
-    /***********************************************/
-
-    // USB Camera
-    /*
-    // This gets the image from a USB camera 
-    // Usually this will be on device 0, but there are other overloads
-    // that can be used
-    UsbCamera camera = setUsbCamera(0, inputStream);
-    // Set the resolution for our camera, since this is over USB
-    camera.setResolution(640,480);
-    */
-    UsbCamera camera = setUsbCamera(0, inputStream);
-    camera.setResolution(320,240);
-    UsbCamera cam2 = setUsbCamera(1, inputStream2);
-    cam2.setResolution(320, 240);
 
     // This creates a CvSink for us to use. This grabs images from our selected camera, 
     // and will allow us to use those images in opencv
@@ -87,43 +69,36 @@ public class Main {
 
     // This creates a CvSource to use. This will take in a Mat image that has had OpenCV operations
     // operations 
-    CvSource imageSource = new CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, 320, 240, 15);
+    CvSource imageSource = new CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, 640, 480, 15);
     MjpegServer cvStream = new MjpegServer("CV Image Stream", 1186);
     cvStream.setSource(imageSource);
 
     // All Mats and Lists should be stored outside the loop to avoid allocations
     // as they are expensive to create
     Mat inputImage = new Mat();
-    Mat hsv = new Mat();
+//    Mat hsv = new Mat();
+    PegFilter gearTarget = new PegFilter();
+    
 	boolean bVisionInd = false;
-	visionTable.putBoolean("Take Pic", bVisionInd);
 	boolean bCameraLoop = true;
-	visionTable.putBoolean("Keep Running", bCameraLoop);
 	boolean bGearDrive = true;
-	visionTable.putBoolean("IsGearDrive", bGearDrive);
 	boolean bVisionOn = false;
-	visionTable.putBoolean("IsVisionOn", bVisionOn);
+	do {
+		visionTable.putBoolean("Take Pic", bVisionInd);
+		visionTable.putBoolean("Keep Running", bCameraLoop);
+		visionTable.putBoolean("IsGearDrive", bGearDrive);
+		visionTable.putBoolean("IsVisionOn", bVisionOn);
+	} while (!visionTable.isConnected());
+
     // Infinitely process image
 //    while (true) {
     int i=0;
 //    while (i < 10) {
 	while (bCameraLoop) {
-      // Grab a frame. If it has a frame time of 0, there was an error.
-      // Just skip and continue
-      long frameTime = imageSink.grabFrame(inputImage);
-      if (frameTime == 0) continue;
 
-      // Below is where you would do your OpenCV operations on the provided image
-      // The sample below just changes color source to HSV
-      Imgproc.cvtColor(inputImage, hsv, Imgproc.COLOR_BGR2HSV);
+		bGearDrive = visionTable.getBoolean("IsGearDrive", bGearDrive);
+		bVisionOn = visionTable.getBoolean("IsVisionOn", bVisionOn);
 
-      // Here is where you would write a processed image that you want to restreams
-      // This will most likely be a marked up image of what the camera sees
-      // For now, we are just going to stream the HSV image
-//      imageSource.putFrame(hsv);
-
-      	bGearDrive = visionTable.getBoolean("IsGearDrive", bGearDrive);
-      	bVisionOn = visionTable.getBoolean("IsVisionOn", bVisionOn);
       	if (bVisionOn) {
       		if (bGearDrive) {
       			gearLight.high();
@@ -136,38 +111,94 @@ public class Main {
       		gearLight.low();
       		fuelLight.low();
       	}
-		visionTable.putNumber("Next Pic", i);
-		bVisionInd = visionTable.getBoolean("Take Pic", bVisionInd);
-		if (bVisionInd) {
-			char cI = Character.forDigit(i, 10);
+  		if (bGearDrive) {
+  		    imageSink.setSource(camera);
+  		} else {
+  		    imageSink.setSource(cam2);
+  		}
+      	
+      // Grab a frame. If it has a frame time of 0, there was an error.
+      // Just skip and continue
+      long frameTime = imageSink.grabFrame(inputImage);
+      if (frameTime == 0) continue;
+
+      // Below is where you would do your OpenCV operations on the provided image
+      // The sample below just changes color source to HSV
+//      Imgproc.cvtColor(inputImage, hsv, Imgproc.COLOR_BGR2HSV);
+      if (bGearDrive) {
+    	  gearTarget.process(inputImage);
+  		int objectsFound = gearTarget.filterContoursOutput().size();
+  		if (objectsFound == 1) {
+  			Rect r1 = Imgproc.boundingRect(gearTarget.filterContoursOutput().get(0));
+  	  		visionTable.putNumber("TargetX", r1.x);
+  			visionTable.putNumber("TargetY", r1.y);
+  			visionTable.putNumber("TargetWidth", r1.width);
+  			visionTable.putNumber("TargetHeight", r1.height);
+  		}
+      }
+
+      // Here is where you would write a processed image that you want to restreams
+      // This will most likely be a marked up image of what the camera sees
+      // For now, we are just going to stream the HSV image
+//      imageSource.putFrame(hsv);
+
+      if (visionTable.isConnected()) {
+    	  visionTable.putNumber("Next Pic", i);
+    	  bVisionInd = visionTable.getBoolean("Take Pic", bVisionInd);
+    	  if (bVisionInd) {
+    		  char cI = Character.forDigit(i, 10);
 //			Imgcodecs.imwrite("/home/pi/vid" + cI + ".jpg", inputImage);
-			String fileTmst = new SimpleDateFormat("yyyyMMddhhmmssSSS").format(new Date().getTime());
-			Imgcodecs.imwrite("/home/pi/vid" + fileTmst + ".jpg", inputImage);
-			System.out.println("loop" + i);
-			i++;
-			bVisionInd = false;
-			visionTable.putBoolean("Take Pic", bVisionInd);
-			if (i > 9) {
-				bCameraLoop = false;
-			}
-		}
-		bCameraLoop = visionTable.getBoolean("Keep Running", bCameraLoop);
+    		  String fileTmst = new SimpleDateFormat("yyyyMMddhhmmssSSS").format(new Date().getTime());
+    		  Imgcodecs.imwrite("/home/pi/vid" + fileTmst + ".jpg", inputImage);
+    		  System.out.println("loop" + i);
+    		  i++;
+    		  bVisionInd = false;
+    		  visionTable.putBoolean("Take Pic", bVisionInd);
+//    		  if (i > 9) {
+//    			  bCameraLoop = false;
+//    		  }
+    	  }
+    	  bCameraLoop = visionTable.getBoolean("Keep Running", bCameraLoop);
+      }
+      imageSource.putFrame(inputImage);
 	}
 	
     gpio.shutdown();
 
   }
 
-  private static UsbCamera setUsbCamera(int cameraId, MjpegServer server) {
+//  UsbCamera v1 - no mjpeg streamer
+  private static UsbCamera setUsbCamera(String camName, int cameraId) {
     // This gets the image from a USB camera 
     // Usually this will be on device 0, but there are other overloads
     // that can be used
-    UsbCamera camera = new UsbCamera("CoprocessorCamera", cameraId);
-    camera.setBrightness(30);
+    UsbCamera camera = new UsbCamera(camName, cameraId);
+    camera.setResolution(640,480);
+    camera.setBrightness(40);
     camera.setExposureManual(10);
     camera.setWhiteBalanceManual(2800);
     camera.setFPS(15);
-    server.setSource(camera);
+    System.out.println(camera.getName());
+    System.out.println(camera.getDescription());
+    System.out.println(camera.getPath());
+    System.out.println(camera.getKind());
+    System.out.println(camera.isConnected());
     return camera;
   }
+  
+  // UsbCamera v2 with mjpeg for testing/monitoring - not recommended for game use
+  	private static UsbCamera setUsbCamera(String camName, int cameraId, MjpegServer server) {
+	    // This gets the image from a USB camera 
+	    // Usually this will be on device 0, but there are other overloads
+	    // that can be used
+	    UsbCamera camera = new UsbCamera(camName, cameraId);
+	    camera.setResolution(640,480);
+	    camera.setBrightness(40);
+	    camera.setExposureManual(10);
+	    camera.setWhiteBalanceManual(2800);
+	    camera.setFPS(15);
+	    server.setSource(camera);
+	    return camera;
+	}
+  	
 }
