@@ -89,11 +89,15 @@ public class Main {
 		visionTable.putBoolean("IsGearDrive", bGearDrive);
 		visionTable.putBoolean("IsVisionOn", bVisionOn);
 	} while (!visionTable.isConnected());
+	
+	double r1PixelX = -1;
+	double r1PixelY = -1;
+	double r1PixelH = -1;
+	double r1PixelW = -1;
+	boolean bIsTargetFound = false;
 
     // Infinitely process image
-//    while (true) {
     int i=0;
-//    while (i < 10) {
 	while (bCameraLoop) {
 
 		bGearDrive = visionTable.getBoolean("IsGearDrive", bGearDrive);
@@ -125,42 +129,49 @@ public class Main {
       // Below is where you would do your OpenCV operations on the provided image
       // The sample below just changes color source to HSV
 //      Imgproc.cvtColor(inputImage, hsv, Imgproc.COLOR_BGR2HSV);
-      if (bGearDrive) {
+   	  bIsTargetFound = false;
+   	  int objectsFound = 0;
+   	  if (bGearDrive) {
     	  gearTarget.process(inputImage);
-  		int objectsFound = gearTarget.filterContoursOutput().size();
-  		if (objectsFound == 1) {
-  			Rect r1 = Imgproc.boundingRect(gearTarget.filterContoursOutput().get(0));
-  	  		visionTable.putNumber("TargetX", r1.x);
-  			visionTable.putNumber("TargetY", r1.y);
-  			visionTable.putNumber("TargetWidth", r1.width);
-  			visionTable.putNumber("TargetHeight", r1.height);
-  		}
-      }
+     	  objectsFound = gearTarget.filterContoursOutput().size();
+     } else {
+    	 objectsFound = 0;
+     }
+    
+   	  if (objectsFound == 1) {
+   		  bIsTargetFound = true;
+    	  Rect r1 = Imgproc.boundingRect(gearTarget.filterContoursOutput().get(0));
+    	  r1PixelX = r1.x;
+    	  r1PixelY = r1.y;
+    	  r1PixelW = r1.width;
+    	  r1PixelH = r1.height;
+   	  } else {
+    	  r1PixelX = -1;
+    	  r1PixelY = -1;
+    	  r1PixelW = -1;
+    	  r1PixelH = -1;
 
-      // Here is where you would write a processed image that you want to restreams
-      // This will most likely be a marked up image of what the camera sees
-      // For now, we are just going to stream the HSV image
-//      imageSource.putFrame(hsv);
+   	  }
 
-      if (visionTable.isConnected()) {
+   	  visionTable.putBoolean("IsTargetFound", bIsTargetFound);
+     visionTable.putNumber("TargetX", r1PixelX);
+     visionTable.putNumber("TargetY", r1PixelY);
+     visionTable.putNumber("TargetWidth", r1PixelW);
+     visionTable.putNumber("TargetHeight", r1PixelH);
+
     	  visionTable.putNumber("Next Pic", i);
     	  bVisionInd = visionTable.getBoolean("Take Pic", bVisionInd);
     	  if (bVisionInd) {
     		  char cI = Character.forDigit(i, 10);
-//			Imgcodecs.imwrite("/home/pi/vid" + cI + ".jpg", inputImage);
     		  String fileTmst = new SimpleDateFormat("yyyyMMddhhmmssSSS").format(new Date().getTime());
     		  Imgcodecs.imwrite("/home/pi/vid" + fileTmst + ".jpg", inputImage);
     		  System.out.println("loop" + i);
     		  i++;
     		  bVisionInd = false;
     		  visionTable.putBoolean("Take Pic", bVisionInd);
-//    		  if (i > 9) {
-//    			  bCameraLoop = false;
-//    		  }
     	  }
     	  bCameraLoop = visionTable.getBoolean("Keep Running", bCameraLoop);
-      }
-      imageSource.putFrame(inputImage);
+    	  imageSource.putFrame(inputImage);
 	}
 	
     gpio.shutdown();
@@ -177,7 +188,7 @@ public class Main {
     camera.setBrightness(40);
     camera.setExposureManual(10);
     camera.setWhiteBalanceManual(2800);
-    camera.setFPS(15);
+    camera.setFPS(20);
     System.out.println(camera.getName());
     System.out.println(camera.getDescription());
     System.out.println(camera.getPath());
