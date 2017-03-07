@@ -31,6 +31,25 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
 public class Main {
+	
+	private static int PIXEL_WIDTH = 640;
+	private static int PIXEL_HEIGHT = 480;
+	private static int BRIGHTNESS = 30;
+	private static int EXPOSURE = 10;
+	private static int WHITE_BALANCE = 2800;
+	private static int FRAMES_PER_SEC = 20;
+	private static Point GEAR_TRGT_UPPER_LEFT = new Point(240,240);
+	private static Point GEAR_TRGT_LOWER_RIGHT = new Point(400,320);
+	private static Scalar RECT_COLOR = new Scalar(255,255,255);
+	private static Point BOILER_TRGT_UPPER_LEFT = new Point(240,10);
+	private static Point BOILER_TRGT_LOWER_RIGHT = new Point(400,120);
+	private static int RECT_LINE_WIDTH = 5;
+	
+	private static boolean bVisionInd = false;
+	private static boolean bCameraLoop = true;
+	private static boolean bGearDrive = true;
+	private static boolean bVisionOn = false;
+	
 	public static void main(String[] args) {
     // Loads our OpenCV library. This MUST be included
 		System.loadLibrary("opencv_java310");
@@ -61,7 +80,6 @@ public class Main {
 		UsbCamera camera = setUsbCamera("GearCam",0);
 		UsbCamera cam2 = setUsbCamera("ShootCam",1);
 
-
     // This creates a CvSink for us to use. This grabs images from our selected camera, 
     // and will allow us to use those images in opencv
 		CvSink imageSink = new CvSink("CV Image Grabber");
@@ -78,11 +96,7 @@ public class Main {
 		Mat inputImage = new Mat();
 //    Mat hsv = new Mat();
 		PegFilter gearTarget = new PegFilter();
-    
-		boolean bVisionInd = false;
-		boolean bCameraLoop = true;
-		boolean bGearDrive = true;
-		boolean bVisionOn = false;
+
 		do {
 			visionTable.putBoolean("Take Pic", bVisionInd);
 			visionTable.putBoolean("Keep Running", bCameraLoop);
@@ -154,23 +168,26 @@ public class Main {
 		   	}
 		   	
 		   	if (bGearDrive) {
-		   		Imgproc.rectangle(inputImage, new Point(240,240), new Point(400,320), new Scalar(255, 255,255), 5);
+		   		Imgproc.rectangle(inputImage, GEAR_TRGT_UPPER_LEFT, GEAR_TRGT_LOWER_RIGHT,
+		   				RECT_COLOR, RECT_LINE_WIDTH);
 		   	} else {
-		   		Imgproc.rectangle(inputImage, new Point(240,10), new Point(400,120), new Scalar(255, 255,255), 5);
+		   		Imgproc.rectangle(inputImage, BOILER_TRGT_UPPER_LEFT, BOILER_TRGT_LOWER_RIGHT,
+		   				RECT_COLOR, RECT_LINE_WIDTH);
 		   	}
 	
 		   	visionTable.putBoolean("IsTargetFound", bIsTargetFound);
-		    visionTable.putNumber("TargetX", r1PixelX);
-		    visionTable.putNumber("TargetY", r1PixelY);
-		    visionTable.putNumber("TargetWidth", r1PixelW);
-		    visionTable.putNumber("TargetHeight", r1PixelH);
+		    visionTable.putNumber("Target1X", r1PixelX);
+		    visionTable.putNumber("Target1Y", r1PixelY);
+		    visionTable.putNumber("Target1Width", r1PixelW);
+		    visionTable.putNumber("Target1Height", r1PixelH);
 	
 	    	visionTable.putNumber("Next Pic", i);
 	    	bVisionInd = visionTable.getBoolean("Take Pic", bVisionInd);
 	    	if (bVisionInd) {
 	    		char cI = Character.forDigit(i, 10);
-	    		String fileTmst = new SimpleDateFormat("yyyyMMddhhmmssSSS").format(new Date().getTime());
-	    		Imgcodecs.imwrite("/home/pi/vid" + fileTmst + ".jpg", inputImage);
+	    		Imgcodecs.imwrite("/home/pi/vid" + cI + ".jpg", inputImage);
+//	    		String fileTmst = new SimpleDateFormat("yyyyMMddhhmmssSSS").format(new Date().getTime());
+//	    		Imgcodecs.imwrite("/home/pi/vid" + fileTmst + ".jpg", inputImage);
 	    		System.out.println("loop" + i);
 	    		i++;
 	    		bVisionInd = false;
@@ -190,11 +207,11 @@ public class Main {
     // Usually this will be on device 0, but there are other overloads
     // that can be used
     UsbCamera camera = new UsbCamera(camName, cameraId);
-    camera.setResolution(640,480);
-    camera.setBrightness(40);
-    camera.setExposureManual(10);
-    camera.setWhiteBalanceManual(2800);
-    camera.setFPS(20);
+    camera.setResolution(PIXEL_WIDTH, PIXEL_HEIGHT);
+    camera.setBrightness(BRIGHTNESS);
+    camera.setExposureManual(EXPOSURE);
+    camera.setWhiteBalanceManual(WHITE_BALANCE);
+    camera.setFPS(FRAMES_PER_SEC);
     System.out.println(camera.getName());
     System.out.println(camera.getDescription());
     System.out.println(camera.getPath());
@@ -209,11 +226,11 @@ public class Main {
 	    // Usually this will be on device 0, but there are other overloads
 	    // that can be used
 	    UsbCamera camera = new UsbCamera(camName, cameraId);
-	    camera.setResolution(640,480);
-	    camera.setBrightness(40);
-	    camera.setExposureManual(10);
-	    camera.setWhiteBalanceManual(2800);
-	    camera.setFPS(15);
+	    camera.setResolution(PIXEL_WIDTH,PIXEL_HEIGHT);
+	    camera.setBrightness(BRIGHTNESS);
+	    camera.setExposureManual(EXPOSURE);
+	    camera.setWhiteBalanceManual(WHITE_BALANCE);
+	    camera.setFPS(FRAMES_PER_SEC);
 	    server.setSource(camera);
 	    return camera;
 	}
