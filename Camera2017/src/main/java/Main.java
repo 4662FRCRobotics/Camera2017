@@ -96,6 +96,7 @@ public class Main {
 		Mat inputImage = new Mat();
 //    Mat hsv = new Mat();
 		PegFilter gearTarget = new PegFilter();
+		BoilerPipeLine shootTarget = new BoilerPipeLine();
 
 		do {
 			visionTable.putBoolean("Take Pic", bVisionInd);
@@ -103,6 +104,8 @@ public class Main {
 			visionTable.putBoolean("IsGearDrive", bGearDrive);
 			visionTable.putBoolean("IsVisionOn", bVisionOn);
 		} while (!visionTable.isConnected());
+		
+		
 	
 		double r1PixelX = -1;
 		double r1PixelY = -1;
@@ -150,15 +153,25 @@ public class Main {
 			 	objectsFound = gearTarget.filterContoursOutput().size();
 			} else {
 				objectsFound = 0;
+				shootTarget.process(inputImage);
+				objectsFound = shootTarget.filterContoursOutput().size();
 			}
 	    
-		   	if (objectsFound == 1) {
+		   	if (objectsFound >= 1) {
 		   		bIsTargetFound = true;
-		    	Rect r1 = Imgproc.boundingRect(gearTarget.filterContoursOutput().get(0));
-		    	r1PixelX = r1.x;
-		    	r1PixelY = r1.y;
-		    	r1PixelW = r1.width;
-		    	r1PixelH = r1.height;
+		    	if (bGearDrive) {
+		    		Rect r1 = Imgproc.boundingRect(gearTarget.filterContoursOutput().get(0));
+		    		r1PixelX = r1.x;
+			    	r1PixelY = r1.y;
+			    	r1PixelW = r1.width;
+			    	r1PixelH = r1.height;
+		   		} else {
+		   			Rect r1 = Imgproc.boundingRect(shootTarget.filterContoursOutput().get(0));	
+		   			r1PixelX = r1.x;
+			    	r1PixelY = r1.y;
+			    	r1PixelW = r1.width;
+			    	r1PixelH = r1.height;
+		   		}
 		    	
 		   	} else {
 		    	r1PixelX = -1;
